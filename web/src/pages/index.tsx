@@ -33,15 +33,7 @@ export default function Home() {
   const [notes, setNotes] = useState<Array<ArxivNotes>>([]);
   const [questionAnswers, setQuestionAnswers] = useState<
     Array<{ answer: string; followupQuestions: string[] }>
-  >([
-    {
-      answer: "goo gaah",
-      followupQuestions: [
-        "How does Gorila manage the AST?",
-        "How does Gorila manage the AST?",
-      ],
-    },
-  ]);
+  >([]);
 
   const submitPaperForm = useForm<z.infer<typeof submitPaperSchema>>({
     resolver: zodResolver(submitPaperSchema),
@@ -187,42 +179,44 @@ export default function Home() {
         </div>
       </div>
       {questionAnswers.length > 0 ? (
-        <div className="flex flex-col gap-5">
+        <>
           <h1 className="text-black text-2xl mt-10 mb-5">Answer(s)</h1>
-          <div className="flex flex-col gap-3">
-            {questionAnswers.map(({ answer, followupQuestions }, index) => (
-              <div
-                key={index}
-                className="flex flex-col max-w-[500px] whitespace-pre-line"
-              >
-                <p className="text-lg text-black text-left">
-                  <span className="text-sm text-gray-500">{index + 1}</span>{" "}
-                  {answer}
-                </p>
-                {followupQuestions.length > 0 && (
-                  <div className="flex flex-col">
-                    {followupQuestions.map((followupQuestion, index) => (
-                      <p
-                        key={index}
-                        className="text-md text-gray-600 px-2 py-1 text-left"
-                        onClick={() =>
-                          onSubmitAskQuestion({ question: followupQuestion })
-                        }
-                      >
-                        <span className="text-sm text-gray-500">
-                          Follow-up Question:
-                        </span>{" "}
-                        <span className="hover:bg-gray-100 hover:rounded-md hover:cursor-pointer px-2 py-1">
-                          {followupQuestion}
-                        </span>
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-3">
+              {questionAnswers.map(({ answer, followupQuestions }, index) => (
+                <div
+                  key={index}
+                  className="flex flex-col max-w-[500px] whitespace-pre-line"
+                >
+                  <p className="text-lg text-black text-left">
+                    <span className="text-sm text-gray-500">{index + 1}</span>{" "}
+                    {answer}
+                  </p>
+                  {followupQuestions.length > 0 && (
+                    <div className="flex flex-col">
+                      {followupQuestions.map((followupQuestion, index) => (
+                        <p
+                          key={index}
+                          className="text-md text-gray-600 text-left"
+                          onClick={() =>
+                            onSubmitAskQuestion({ question: followupQuestion })
+                          }
+                        >
+                          <span className="text-sm text-gray-500">
+                            Follow-up Question:
+                          </span>{" "}
+                          <span className="hover:bg-gray-100 hover:rounded-md hover:cursor-pointer px-2 py-1">
+                            {followupQuestion}
+                          </span>
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </>
       ) : null}
       <h1 className="text-black text-2xl mt-10 mb-5">Arxiv Paper QA</h1>
       <div className="flex flex-col gap-3">
