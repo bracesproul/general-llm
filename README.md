@@ -98,7 +98,7 @@ yarn build
 Start the API server:
 
 ```shell
-yarn start:dist
+yarn start
 ```
 
 Start the web server:
