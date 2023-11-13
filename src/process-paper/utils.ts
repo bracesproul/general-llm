@@ -1,18 +1,15 @@
-import { PDFDocument } from "pdf-lib";
-import { writeFile, readFile } from "fs/promises";
+import { PDFDocument } from 'pdf-lib';
 
-/**
- * For this example I know the acknowledgement & citations
- * are on pages 10-18 so I can hard code this.
- */
-export const modifyPdf = async (filePath: string) => {
-  const pageNumsToDelete = [10, 11, 12, 13, 14, 15, 16, 17, 18];
-  const existingPdfBytes = await readFile(filePath);
-  const pdfDoc = await PDFDocument.load(existingPdfBytes);
-  for (let i = 0; i < pageNumsToDelete.length; i += 1) {
-    const pageCount = pdfDoc.getPageCount();
-    pdfDoc.removePage(pageCount - 1);
+export const deletePagesFromPdf = async (
+  pdf: Buffer,
+  pagesToDelete: number[]
+): Promise<Buffer> => {
+  const pdfDoc = await PDFDocument.load(pdf);
+  let numToOffsetBy = 1;
+  for (const pageNumber of pagesToDelete) {
+    pdfDoc.removePage(pageNumber - numToOffsetBy);
+    numToOffsetBy += 1;
   }
-  const pdfBytes2 = await pdfDoc.save();
-  await writeFile(filePath, pdfBytes2, "binary");
+  const pdfBytes = await pdfDoc.save();
+  return Buffer.from(pdfBytes);
 };

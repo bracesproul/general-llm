@@ -1,6 +1,6 @@
-import express, { Request, Response } from "express";
-import { processPaper } from "process-paper/index.js";
-import { qaOverPaper } from "qa-over-paper/index.js";
+import express, { Request, Response } from 'express';
+import { processPaper } from 'process-paper/index.js';
+import { qaOverPaper } from 'qa-over-paper/index.js';
 
 function main() {
   const app = express();
@@ -8,19 +8,19 @@ function main() {
 
   app.use(express.json());
 
-  app.get("/", (_req, res) =>
+  app.get('/', (_req, res) =>
     // healthcheck
-    res.send("ok")
+    res.send('ok')
   );
 
-  app.post("/process_paper", async (req: Request, res: Response) => {
+  app.post('/process_paper', async (req: Request, res: Response) => {
     const { body } = req;
-    const { paperUrl, name } = await body;
-    const notes = await processPaper(paperUrl, name);
+    const { paperUrl, name, pagesToDelete } = await body;
+    const notes = await processPaper(paperUrl, name, pagesToDelete);
     res.status(200).send(notes);
   });
 
-  app.post("/qa", async (req: Request, res: Response) => {
+  app.post('/qa', async (req: Request, res: Response) => {
     const { body } = req;
     const { question, name, paperUrl } = await body;
     const results = await qaOverPaper(question, name, paperUrl);
