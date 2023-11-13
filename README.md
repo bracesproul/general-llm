@@ -1,9 +1,17 @@
 # Arxiv RAG
 
-Preform RAG over Arxiv papers.
+## Introduction
+Arxiv RAG is a web application and API designed for generating notes and answering questions on Arxiv papers using Large Language Models (LLMs). This project leverages the Unstructured API for parsing and chunking PDFs and Supabase for the PostgreSQL database and querying embeddings.
 
-## Usage
+## Setup
 
+### Prerequisites
+- Docker
+- Node.js
+- Yarn package manager
+- Supabase account
+
+### Environment Configuration
 Create a `.env.development.local` file in the root directory with the following content:
 
 ```shell
@@ -12,18 +20,23 @@ SUPABASE_PRIVATE_KEY=<YOUR_API_KEY>
 SUPABASE_URL=<YOUR_URL>
 ```
 
-Start a local instance of Unstructured with Docker:
+### Starting Unstructured with Docker
+
+Start a local instance of Unstructured with the following Docker command:
 
 ```shell
 docker run -p 8000:8000 -d --rm --name unstructured-api quay.io/unstructured-io/unstructured-api:latest --port 8000 --host 0.0.0.0
 ```
 
-Execute the following SQL in Supabase:
+### Database Setup in Supabase
+
+Execute the following SQL commands in your Supabase project to set up the required database structure:
 
 ```sql
--- Enable the pgvector extension to work with embedding vectors
+-- Enable the pgvector extension
 create extension vector;
 
+-- Create tables for storing Arxiv papers, embeddings, and question answering data
 CREATE TABLE arxiv_papers (
   id UUID PRIMARY KEY,
   created_at TIMESTAMPTZ,
@@ -50,7 +63,7 @@ CREATE TABLE arxiv_question_answering (
   context TEXT
 );
 
--- Create a function to search for documents
+-- Create a function for document matching
 create function match_documents (
   query_embedding vector(1536),
   match_count int DEFAULT null,
@@ -81,7 +94,9 @@ end;
 $$;
 ```
 
-Add your project ID to the Supabase generate types script:
+### Supabase Type Generation
+
+Add your project ID to the Supabase generate types script in package.json:
 
 ```json
 {
@@ -89,19 +104,21 @@ Add your project ID to the Supabase generate types script:
 }
 ```
 
-Build the API server:
+## Running the Application
+
+### Build the API Server
 
 ```shell
 yarn build
 ```
 
-Start the API server:
+### Start the API Server
 
 ```shell
 yarn start
 ```
 
-Start the web server:
+### Start the Web Server
 
 ```shell
 yarn dev:web
