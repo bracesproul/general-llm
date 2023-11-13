@@ -18,7 +18,7 @@
     "format": "prettier --write \"**/*.ts\"",
     "format:check": "prettier --check \"**/*.ts\"",
     "dev:web": "cd ./web && yarn dev",
-    "gen:supabase:types": "touch ./src/generated.ts && supabase gen types typescript --schema public > ./src/generated.ts --project-id"
+    "gen:supabase:types": "touch ./src/generated.ts && supabase gen types typescript --schema public > ./src/generated.ts --project-id swwacinbhkwontaybudl"
   },
   "author": "LangChain",
   "license": "MIT",
