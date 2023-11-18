@@ -9,3 +9,7 @@ export async function openPullRequest(
     `cd ${repoRootPath} && git checkout -b ${branchName} && git add -A && git commit -m "${title}" && git push --set-upstream origin ${branchName}`
   );
 }
+
+export async function lintAndFormatFiles(rootPath: string) {
+  await execAsync(`cd ${rootPath} && yarn format && yarn lint`);
+}

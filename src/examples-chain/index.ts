@@ -1,8 +1,3 @@
-/**
- * Find all classes which need examples
- * Find example file for said class
- * Apply
- */
 import * as fs from 'fs/promises';
 import { ChatOpenAI } from 'langchain/chat_models/openai';
 import { StructuredOutputParser } from 'langchain/output_parsers';
@@ -11,7 +6,7 @@ import path from 'path';
 import { Project, SourceFile } from 'ts-morph';
 import { loadFilesFromDirectory } from 'utils/loadFilesFromDirectory.js';
 import { z } from 'zod';
-import { openPullRequest } from 'utils/openPullRequest.js';
+import { lintAndFormatFiles, openPullRequest } from 'utils/openPullRequest.js';
 import { prettifyCode } from 'utils/prettifyCode.js';
 import { initLangChainProject } from 'utils/initLangChainProject.js';
 import { removeCommentsFromFile } from 'utils/removeCommentsFromFile.js';
@@ -30,10 +25,10 @@ type ClassWithoutExample = {
 };
 
 /**
- * Find all exported classes which do not contain an example in their JSDoc.
+ Find all exported classes which do not contain an example in their JSDoc.
  *
- * @param {Array<string>} entrypoints A list of paths which are entrypoints for LangChain.
- * @returns {Array<ClassWithoutExample>} A list of objects with path and classname.
+ @param {Array<string>} entrypoints A list of paths which are entrypoints for LangChain.
+ @returns {Array<ClassWithoutExample>} A list of objects with path and classname.
  */
 function getAllClassesWithoutExamples(
   project: Project
@@ -199,17 +194,64 @@ async function findExampleFile(
   if (filesWhereClassIsImported.length === 1) {
     return filesWhereClassIsImported[0];
   }
-  // deal with mili files.
-  console.log('multiple files found');
-  return undefined;
+  const fileWithLeastCode = await getLeastCodeFile(filesWhereClassIsImported);
+  return fileWithLeastCode;
 }
 
-async function formatCodeForJsDoc(text: string): Promise<string> {
-  const cleanedText = text
-    .replace('```', '')
-    .replace('new OpenAI', 'new ChatOpenAI');
-  const formattedText = await prettifyCode(cleanedText);
-  return formattedText;
+// if theres more than one, load all and pick one with the least amount of code.
+async function getLeastCodeFile(files: Array<string>): Promise<string> {
+  const fileContents = await Promise.all(
+    files.map(async (file) => {
+      const contents = await fs.readFile(file, 'utf-8');
+      return {
+        file,
+        contents,
+      };
+    })
+  );
+  fileContents.sort((a, b) => a.contents.length - b.contents.length);
+  return fileContents[0].file;
+}
+
+const pickRandomModel = (text: string) => {
+  const evenOrOdd = Math.random() > 0.5 ? 'even' : 'odd';
+  let modelToUse = '';
+  if (evenOrOdd === 'even') {
+    modelToUse = 'ChatOpenAI';
+  } else {
+    modelToUse = 'ChatAnthropic';
+  }
+  // Searches for all model declarations and replaces
+  //
+  const newText = text.replace(
+    /const (model|llm|chat) = new [^\\(]+/g,
+    (_, p1) => `const ${p1} = new ${modelToUse}`
+  );
+  return newText;
+};
+
+async function formatCodeForJsDoc(
+  text: string,
+  klass: string
+): Promise<string> {
+  const cleanedText = text.replace('```', '');
+  // Replaces the LLM model with either ChatOpenAI or
+  // ChatAnthropic. (if it is defined as its own variable)
+  const textWithRandomModel = pickRandomModel(cleanedText);
+  let formattedText = textWithRandomModel;
+  // find any double newlines (\n\n) and replace with single newlines (\n)
+  formattedText = formattedText.replace(/\n\n/g, '\n');
+  try {
+    // Runs the code through the prettier formatter.
+    formattedText = await prettifyCode(textWithRandomModel);
+  } catch (err) {
+    const failedClassFile = await fs.readFile('failed-class.txt', 'utf-8');
+    await fs.writeFile('failed-class.txt', `${failedClassFile}\n${klass}`);
+    console.error(`Error while formatting code for JSDoc. Class: ${klass}`);
+  }
+  // Removes JSDoc and inline comments from code.
+  formattedText = removeCommentsFromFile(formattedText);
+  return formattedText.trim();
 }
 
 async function addOrUpdateJsDocForClass(
@@ -223,10 +265,18 @@ async function addOrUpdateJsDocForClass(
   if (!classDeclaration) {
     throw new Error(`Could not find class ${klass} in file ${klassPath}`);
   }
-  const cleanedText = await formatCodeForJsDoc(text);
+  const cleanedText = await formatCodeForJsDoc(text, klass);
+  if (!cleanedText) {
+    console.log('No text found for example.', {
+      class: klass,
+    });
+    return;
+  }
   const textAsExample = {
     tagName: 'example',
-    text: `\n\`\`\`typescript\n${cleanedText}\n\`\`\``,
+    text: `\n\`\`\`typescript
+${cleanedText}
+\`\`\``,
   };
   const jsDocs = classDeclaration.getJsDocs();
   if (jsDocs.length === 0) {
@@ -251,10 +301,6 @@ async function generateAndWriteJsDoc(
   input: { exampleFile: string } & ClassWithoutExample,
   project: Project
 ): Promise<void> {
-  // read example file
-  // prompt LLM to generate simplified example (if needed) in jsDoc format.
-  // use ts-morph to add or insert the example
-  // once done with all have git checkout a branch, commit, and push.
   const model = new ChatOpenAI({
     temperature: 0,
     modelName: 'gpt-4-1106-preview',
@@ -270,13 +316,14 @@ async function generateAndWriteJsDoc(
   );
   const chain = RunnableSequence.from([
     {
-      code: async (i: { filePath: string }) => {
+      code: async (i: { filePath: string; klass: string }) => {
         const fileContents = await fs.readFile(i.filePath, 'utf-8');
         // Strip comments as many examples contain comments with 1000's of tokens of text.
         const fileContentsWithoutComments =
           removeCommentsFromFile(fileContents);
         return fileContentsWithoutComments;
       },
+      klass: (i: { filePath: string; klass: string }) => i.klass,
     },
     WRITE_EXAMPLE_CODE_PROMPT,
     model,
@@ -293,6 +340,7 @@ async function generateAndWriteJsDoc(
   ]);
   const response = await chain.invoke({
     filePath: input.exampleFile,
+    klass: input.className,
   });
 }
 
@@ -321,10 +369,15 @@ async function main() {
     )
   ).flatMap((file) => (file !== undefined ? [file] : []));
   console.log(
-    `Found ${classesWithoutExamples.length} classes without examples. Starting my work now!`
+    `\n\nFound ${exampleFiles.length} classes without examples. Starting my work now!\n\n`
   );
+  let indxCount = 0;
   try {
     for await (const item of exampleFiles) {
+      indxCount += 1;
+      if (indxCount === 50) {
+        break;
+      }
       await generateAndWriteJsDoc(item, project);
       console.log(`Wrote example for ${item.className}\n`);
     }
@@ -332,6 +385,7 @@ async function main() {
     console.error('Error while iterating over files to update.');
     throw err;
   }
+  await lintAndFormatFiles(LANGCHAIN_ABSOLUTE_PATH);
   await openPullRequest(
     LANGCHAIN_ABSOLUTE_PATH,
     PULL_REQUEST_BRANCH,
@@ -341,4 +395,4 @@ async function main() {
     `\n\nAdded: ${exampleFiles.length} examples to the codebase!\nOpened PR @ branch ${PULL_REQUEST_BRANCH}`
   );
 }
-// main();
+main();

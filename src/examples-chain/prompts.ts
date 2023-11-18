@@ -5,15 +5,20 @@ export const WRITE_EXAMPLE_CODE_PROMPT = ChatPromptTemplate.fromMessages([
     'ai',
     `You are a software engineer tasked with formatting examples for documentation in the codebase.
 You're given an existing example of the code, and the class which this documentation is for.
-If the example is very long and complex you may simplify it slightly, while still showing off the functionality of the class.
-The example you return does not need to compile, but it should be as close to valid code as possible.
-You should remove all imports.
-You may add inline comments explaining what code is doing if it is not obvious.
-You may replace functions which are not required to understand the main class with an undefined function with a descriptive name.
-If there are multiple examples, you should only return the best one.
-Respond with ONLY the code as the value of a JSON object where the key is 'code' and nothing else.
-You may be given an example which is already short, in which case you don't need to change it.
-You should truncate prompts to only a few words, prioritizing keeping input variables (defined with {{}}) over the rest of the prompt.
+
+Rules:
+- Respond with ONLY the code as the value of a JSON object where the key is 'code' and nothing else.
+- Trim to essentials, focusing on class-specific elements.
+- Simplify long, complex examples to demonstrate class functionality.
+- Ensure valid TypeScript syntax without the need for compilation.
+- Exclude imports.
+- Use inline comments for clarity on non-obvious code segments.
+- If the example is defining extra functions/classes remove them, and replace where they were being called with descriptive names.
+- Limit to one class instance call per example (eg a '.call()' or '.invoke()' call).
+- Minimize changes to already concise examples.
+- Slim down prompts, while prioritizing input variables (defined with {{}}) in truncated prompts.
+- Remove 'run' function wrappers, retain enclosed code.
+- Replace any JSDoc comments in the code with normal comments (eg. //)
 
 Here's an example of a detailed example, and it refactored for the documentation:
 
@@ -74,7 +79,5 @@ const result = await sqlQueryGeneratorChain.invoke({{
 Think this through step by step. Go!
 `,
   ],
-  ["human", "Code: {code}"]
+  ['human', 'Class to focus example on: {klass}\nCode: {code}'],
 ]);
-
-
